@@ -6,10 +6,19 @@
 // crear constantes con valores de configuracion(p. ej. contraseña de WiFi)
 const char* WIFI_SSID = "ETEC-UBA";       // SSID( nombre de la red WiFi)
 const char* CLAVE = "ETEC-alumnos@UBA";   // Contraseña de wifi
-const char* MQTT_BROKER = "10.9.120.49";  // MQTT Broker
+const char* MQTT_BROKER = "10.9.121.28";  // MQTT Broker
 const int PUERTO_MQTT = 1883;             //Puerto MQTT
-const char* MQTT_TOPIC = "topic-prueba";  //Topic sin "#" y
+const char* MQTT_TOPIC = "aulas";  //Topic sin "#" y
 const char* MQTT_LOG_TOPIC = "logs";
+
+//inicioCodigoMotor
+const int MOTOR_VERDE = 33;
+const int MOTOR_AZUL = 25;
+const int MOTOR_NARANJA = 26; 
+
+const int MOTOR_VELOCIDAD_MAXIMA = 255;
+//FinCodigoMotor
+
 //crear objetos para gestionar las conexiones
 
 String aula = "";  // creo esta variable para guardar lo que viene de MQTT
@@ -42,6 +51,12 @@ void callback(char* topic, byte* message, unsigned int length) {
 }
 
 void setup() {
+  //inicioCodigoMotor
+  pinMode(MOTOR_VERDE, OUTPUT);
+  pinMode(MOTOR_AZUL, OUTPUT);
+  pinMode(MOTOR_NARANJA, OUTPUT);
+  //FinCodigoMotor
+
   //  Iniciar puerto serie (para enviar mensajes informando el estado de la conexión de WiFi, los mensajes que recibimos por MQTT, etc.)
   Serial.begin(115200);
   WiFi.begin(WIFI_SSID, CLAVE);
@@ -80,17 +95,20 @@ void loop() {
   client.loop();
 
   if (aula != "") {                    // si la variable "aula" es diferente de null  me muestra lo que guarde en la variable que
-    Serial.print("Recibi: ");  // que en este caso seria ek numero del aula
+    Serial.print("Recibi: ");  // que en este caso seria el numero del aula
     Serial.println(aula);
     
     
     if(encontroAula(aula))
       Serial.println("Llave servida");
+      
     else
       Serial.println("No se encontro la llave");
 
     aula = "";  // lo que hago aca es que una vez que me muestra lo que le pedi que seria el numero del aula
     //hace que la varible vuelva a estar vacia para que puedan entrar otras aulas
+    
+    
   }
 }
 
@@ -98,5 +116,32 @@ bool encontroAula(String aula)
 {
   Serial.print("Buscando: ");
   Serial.println(aula);
+
+  //inicioCodigoMotor
+  girarMotor(MOTOR_VELOCIDAD_MAXIMA);
+  delay(1000);
+  detenerMotor();
+  //FinCodigoMotor
+
   return true;
 }
+//inicioCodigoMotor
+void girarMotor(int velocidad)
+{
+  analogWrite(MOTOR_VERDE, velocidad);
+  digitalWrite(MOTOR_NARANJA, LOW);
+  digitalWrite(MOTOR_AZUL, HIGH);
+}
+
+void girarMotorReversa(int velocidad)
+{
+  analogWrite(MOTOR_VERDE, velocidad);
+  digitalWrite(MOTOR_NARANJA, HIGH);
+  digitalWrite(MOTOR_AZUL, LOW);
+}
+
+void detenerMotor()
+{
+  girarMotor(0);
+}
+//FinCodigoMotor
