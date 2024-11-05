@@ -2,13 +2,26 @@
 #include <WiFi.h>  //
 #include <PubSubClient.h>
 
+//Bibliotecas para el lector RFID
+
+#include <SPI.h>  // Incluye la biblioteca SPI para la comunicación en serie
+#include <MFRC522.h> // Incluye la biblioteca MFRC522 para leer etiquetas RFID
+
+// Constantes de RFID
+#define SS_PIN 5   // Define el pin de selección de esclavo (SS) como el pin 5
+#define RST_PIN 0  // Define el pin de reinicio (RST) como el pin 0
+
+// Variables
+byte nuidPICC[4] = { 0, 0, 0, 0 };  // Array para almacenar el UID de la tarjeta RFID
+MFRC522::MIFARE_Key key;            // Crea una variable para la clave MIFARE
+MFRC522 rfid(SS_PIN, RST_PIN);      // Inicializa el lector RFID con los pines definidos
 
 // crear constantes con valores de configuracion(p. ej. contraseña de WiFi)
 const char* WIFI_SSID = "ETEC-UBA";       // SSID( nombre de la red WiFi)
 const char* CLAVE = "ETEC-alumnos@UBA";   // Contraseña de wifi
-const char* MQTT_BROKER = "10.9.121.28";  // MQTT Broker
+const char* MQTT_BROKER = "10.9.120.54";  // MQTT Broker
 const int PUERTO_MQTT = 1883;             //Puerto MQTT
-const char* MQTT_TOPIC = "aulas";  //Topic sin "#" y
+const char* MQTT_TOPIC = "topic-prueba";  //Topic sin "#" y
 const char* MQTT_LOG_TOPIC = "logs";
 
 //inicioCodigoMotor
@@ -51,6 +64,19 @@ void callback(char* topic, byte* message, unsigned int length) {
 }
 
 void setup() {
+
+// Init Serial USB
+  Serial.begin(115200);                    // Inicia la comunicación serie a 115200 baudios
+  Serial.println(F("Initialize System"));  // Imprime un mensaje en el monitor serie
+  // Init RFID
+  SPI.begin();      // Inicia la comunicación SPI
+  rfid.PCD_Init();  // Inicializa el lector RFID
+
+
+  Serial.print(F("Reader: "));     // Imprime "Reader: " en el monitor serie
+  rfid.PCD_DumpVersionToSerial();  // Imprime la versión del lector RFID
+
+
   //inicioCodigoMotor
   pinMode(MOTOR_VERDE, OUTPUT);
   pinMode(MOTOR_AZUL, OUTPUT);
@@ -92,6 +118,8 @@ void setup() {
 }
 
 void loop() {
+   readRFID();  // Llama a la función readRFID en el bucle principal
+
   client.loop();
 
   if (aula != "") {                    // si la variable "aula" es diferente de null  me muestra lo que guarde en la variable que
@@ -116,11 +144,24 @@ bool encontroAula(String aula)
 {
   Serial.print("Buscando: ");
   Serial.println(aula);
-
+  //aca tengo que programar un bucle while que haga girar el carrusel asta que encuentre el aula que esta buscando en el tag (como por ejemplo "aula 314") 
+    
+     girarMotor(MOTOR_VELOCIDAD_MAXIMA);   //hago girar el motor
+    //repetir las próximas instrucciones MIENTRAS QUE no encuentre la tarjeta Y NO haya dado una vuelta completa
+    while(1 == 0) //infinito. ToDo: hasta que de vuelta completa (por si la llave no está) o timeout
+    {
+      //Leo el tag
+      //si es el aula del tag es la que estoy buscando 
+        //detengo carrusel
+        return true;
+    }
+    //return false;
+  
+  
   //inicioCodigoMotor
   girarMotor(MOTOR_VELOCIDAD_MAXIMA);
-  delay(1000);
-  detenerMotor();
+ // delay(1000);
+//  detenerMotor();
   //FinCodigoMotor
 
   return true;
@@ -142,6 +183,97 @@ void girarMotorReversa(int velocidad)
 
 void detenerMotor()
 {
-  girarMotor(0);
+  digitalWrite(MOTOR_NARANJA, LOW);
+  digitalWrite(MOTOR_AZUL, LOW);
 }
 //FinCodigoMotor
+
+void readRFID() {
+  // Read RFID card
+
+
+  for (byte i = 0; i < 6; i++) {
+    key.keyByte[i] = 0xFF;  // Establece la clave MIFARE en 0xFF para cada byte
+  }
+
+
+  // Look for new cards
+  if (!rfid.PICC_IsNewCardPresent()) {  // Verifica si hay una nueva tarjeta presente
+    return;                             // Si no hay tarjeta, sale de la función
+  }
+
+
+  // Verify if the NUID has been read
+  if (!rfid.PICC_ReadCardSerial()) {  // Intenta leer el UID de la tarjeta
+    return;                           // Si no se puede leer, sale de la función
+  }
+
+
+  // Store NUID into nuidPICC array
+  for (byte i = 0; i < 4; i++) {
+    nuidPICC[i] = rfid.uid.uidByte[i];  // Almacena el UID leído en el array nuidPICC
+  }
+
+
+  Serial.print(F("RFID in dec: "));           // Imprime el mensaje "RFID in dec: "
+  printDec(rfid.uid.uidByte, rfid.uid.size);  // Llama a la función printDec para imprimir el UID en decimal
+  Serial.println();                           // Imprime una nueva línea en el monitor serie
+
+
+  // Halt PICC
+  rfid.PICC_HaltA();  // Detiene la comunicación con la tarjeta RFID
+
+
+  // Stop encryption on PCD
+  rfid.PCD_StopCrypto1();  // Detiene la encriptación en el lector
+}
+
+
+/**
+  Helper routine to dump a byte array as hex values to Serial.
+*/
+void printHex(byte *buffer, byte bufferSize) {
+  if (buffer != nullptr) {  // Comprueba si el puntero no es nulo
+    for (byte i = 0; i < bufferSize; i++) {
+      Serial.print(buffer[i] < 0x10 ? " 0" : " ");  // Formatea la salida
+      Serial.print(buffer[i], HEX);                 // Imprime el byte en formato hexadecimal
+    }
+  }
+}
+
+
+/**
+  Helper routine to dump a byte array as dec values to Serial.
+*/
+void printDec(byte *buffer, byte bufferSize) {
+  if (buffer != nullptr) {  // Comprueba si el puntero no es nulo
+    for (byte i = 0; i < bufferSize; i++) {
+      Serial.print(buffer[i] < 0x10 ? " 0" : " ");  // Formatea la salida
+      Serial.print(buffer[i], DEC);                 // Imprime el byte en formato decimal
+    }
+  }
+}
+
+
+void ReadDataFromBlock(int blockNum, byte readBlockData[]) {
+  // Autenticación del bloque para lectura
+  status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, blockNum, &key, &(mfrc522.uid));
+  if (status != MFRC522::STATUS_OK) {
+    Serial.print("Fallo en la autenticación para lectura: ");
+    Serial.println(mfrc522.GetStatusCodeName(status));
+    return;
+  } else {
+    Serial.println("Autenticación exitosa para lectura");
+  }
+
+  // Leer datos del bloque
+  status = mfrc522.MIFARE_Read(blockNum, readBlockData, &bufferLen);
+  if (status != MFRC522::STATUS_OK) {
+    Serial.print("Fallo al leer: ");
+    Serial.println(mfrc522.GetStatusCodeName(status));
+    return;
+  } else {
+    Serial.println("Bloque leído exitosamente");
+  }
+}
+
