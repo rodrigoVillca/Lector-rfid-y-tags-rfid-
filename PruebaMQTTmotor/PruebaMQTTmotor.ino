@@ -4,8 +4,8 @@
 
 //Bibliotecas para el lector RFID
 
-#include <SPI.h>  // Incluye la biblioteca SPI para la comunicación en serie
-#include <MFRC522.h> // Incluye la biblioteca MFRC522 para leer etiquetas RFID
+#include <SPI.h>      // Incluye la biblioteca SPI para la comunicación en serie
+#include <MFRC522.h>  // Incluye la biblioteca MFRC522 para leer etiquetas RFID
 
 // Constantes de RFID
 #define SS_PIN 5   // Define el pin de selección de esclavo (SS) como el pin 5
@@ -15,20 +15,23 @@
 byte nuidPICC[4] = { 0, 0, 0, 0 };  // Array para almacenar el UID de la tarjeta RFID
 MFRC522::MIFARE_Key key;            // Crea una variable para la clave MIFARE
 MFRC522 rfid(SS_PIN, RST_PIN);      // Inicializa el lector RFID con los pines definidos
-#define RFID_NUMERO_DE_BLOQUE 1     //Número de bloque donde se guardan el nombre de aula en la memoria del tag RFID
+
+MFRC522::StatusCode status;
+
+#define RFID_NUMERO_DE_BLOQUE 1  //Número de bloque donde se guardan el nombre de aula en la memoria del tag RFID
 
 // crear constantes con valores de configuracion(p. ej. contraseña de WiFi)
-const char* WIFI_SSID = "ETEC-UBA";       // SSID( nombre de la red WiFi)
-const char* CLAVE = "ETEC-alumnos@UBA";   // Contraseña de wifi
+const char* WIFI_SSID = "ETEC-UBA";        // SSID( nombre de la red WiFi)
+const char* CLAVE = "ETEC-alumnos@UBA";    // Contraseña de wifi
 const char* MQTT_BROKER = "10.9.121.244";  // MQTT Broker
-const int PUERTO_MQTT = 1883;             //Puerto MQTT
-const char* MQTT_TOPIC = "topic-prueba";  //Topic sin "#" y
+const int PUERTO_MQTT = 1883;              //Puerto MQTT
+const char* MQTT_TOPIC = "topic-prueba";   //Topic sin "#" y
 const char* MQTT_LOG_TOPIC = "logs";
 
 //inicioCodigoMotor
 const int MOTOR_VERDE = 33;
 const int MOTOR_AZUL = 25;
-const int MOTOR_NARANJA = 26; 
+const int MOTOR_NARANJA = 26;
 
 const int MOTOR_VELOCIDAD_MAXIMA = 255;
 //FinCodigoMotor
@@ -66,7 +69,7 @@ void callback(char* topic, byte* message, unsigned int length) {
 
 void setup() {
 
-// Init Serial USB
+  // Init Serial USB
   Serial.begin(115200);                    // Inicia la comunicación serie a 115200 baudios
   Serial.println(F("Initialize System"));  // Imprime un mensaje en el monitor serie
   // Init RFID
@@ -106,7 +109,7 @@ void setup() {
     Serial.println("conectando a MQTT...");
     if (client.connect("ESP32Client")) {
       Serial.println("conectado");
-      client.subscribe(MQTT_TOPIC);                   // me suscribo al topic
+      client.subscribe(MQTT_TOPIC);                       // me suscribo al topic
       client.publish(MQTT_LOG_TOPIC, "ESP32 conectado");  // publico mensaje avisando que me conecté
 
 
@@ -119,129 +122,129 @@ void setup() {
 }
 
 void loop() {
-   readRFID();  // Llama a la función readRFID en el bucle principal
+  //readRFID();  // Llama a la función readRFID en el bucle principal
 
   client.loop();
 
-  if (aula != "") {                    // si la variable "aula" es diferente de null  me muestra lo que guarde en la variable que
+  if (aula != "") {            // si la variable "aula" es diferente de null  me muestra lo que guarde en la variable que
     Serial.print("Recibi: ");  // que en este caso seria el numero del aula
     Serial.println(aula);
-    
-    
-    if(encontroAula(aula))
+
+    if (encontroAula(aula))
       Serial.println("Llave servida");
-      
     else
       Serial.println("No se encontro la llave");
 
     aula = "";  // lo que hago aca es que una vez que me muestra lo que le pedi que seria el numero del aula
     //hace que la varible vuelva a estar vacia para que puedan entrar otras aulas
-    
-    
   }
 }
 
-bool encontroAula(String aula)
-{
+bool encontroAula(String aula) {
   Serial.print("Buscando: ");
   Serial.println(aula);
-  //aca tengo que programar un bucle while que haga girar el carrusel asta que encuentre el aula que esta buscando en el tag (como por ejemplo "aula 314") 
-    
-     girarMotor(MOTOR_VELOCIDAD_MAXIMA);   //hago girar el motor
-    //repetir las próximas instrucciones MIENTRAS QUE no encuentre la tarjeta Y NO haya dado una vuelta completa
-    while(1 == 0) //infinito. ToDo: hasta que de vuelta completa (por si la llave no está) o timeout
-    {
-      byte datosLeidosDelTag[16]; //los bloques son de 16 bytes
-      //Leo el tag
-      ReadDataFromBlock(RFID_NUMERO_DE_BLOQUE, datosLeidosDelTag);
-      //convertir los datosLeidosDelTag a String: 
-      String datosLeidosDelTagString = String((char*) datosLeidosDelTag);
+  //aca tengo que programar un bucle while que haga girar el carrusel asta que encuentre el aula que esta buscando en el tag (como por ejemplo "aula 314")
 
-      //if(aula == datosLeidosDelTagString)
-      if(aula.equals(datosLeidosDelTagString))
-      {//si es el aula del tag es la que estoy buscando  (comparo dos variables Strings que serian aula y datosLeidosDelTag)
-        detenerMotor();
-        return true;
-      }
+  girarMotor(MOTOR_VELOCIDAD_MAXIMA);  //hago girar el motor
+  //repetir las próximas instrucciones MIENTRAS QUE no encuentre la tarjeta Y NO haya dado una vuelta completa
+  while (1 == 1)  //infinito. ToDo: hasta que de vuelta completa (por si la llave no está) o timeout
+  {
+    while (!hayTagRFID());
+
+    Serial.print("Hay una tarjeta, con datos: ");
+    byte datosLeidosDelTag[16];  //los bloques son de 16 bytes
+    //Leo el tag
+    ReadDataFromBlock(RFID_NUMERO_DE_BLOQUE, datosLeidosDelTag);
+
+    //cierro la comunicación con el tag, sino no puedo leer otra
+    tagRFIDCerrarComunicacion();
+
+    //convertir los datosLeidosDelTag a String:
+    String datosLeidosDelTagString = String((char*)datosLeidosDelTag);
+    String datosRecortados = datosLeidosDelTagString.substring(0, 8); //ToDo: de apuro recortamos el tamaño de los datos leidos. Mejorar
+
+    Serial.println(datosRecortados);
+    //if(aula == datosRecortados)
+    if (aula.equals(datosRecortados)) {  //si es el aula del tag es la que estoy buscando  (comparo dos variables Strings que serian aula y datosLeidosDelTag)
+      detenerMotor();
+      return true;
     }
-    return false;
-  
-  
+  }
+  detenerMotor();
+  return false;
+
+
   //inicioCodigoMotor
   //girarMotor(MOTOR_VELOCIDAD_MAXIMA);
- // delay(1000);
-//  detenerMotor();
+  // delay(1000);
+  //  detenerMotor();
   //FinCodigoMotor
-
-  return true;
 }
 //inicioCodigoMotor
-void girarMotor(int velocidad)
-{
+void girarMotor(int velocidad) {
   analogWrite(MOTOR_VERDE, velocidad);
   digitalWrite(MOTOR_NARANJA, LOW);
   digitalWrite(MOTOR_AZUL, HIGH);
 }
 
-void girarMotorReversa(int velocidad)
-{
+void girarMotorReversa(int velocidad) {
   analogWrite(MOTOR_VERDE, velocidad);
   digitalWrite(MOTOR_NARANJA, HIGH);
   digitalWrite(MOTOR_AZUL, LOW);
 }
 
-void detenerMotor()
-{
+void detenerMotor() {
   digitalWrite(MOTOR_NARANJA, LOW);
   digitalWrite(MOTOR_AZUL, LOW);
 }
 //FinCodigoMotor
 
+bool hayTagRFID() {
+  // Preparar la llave para la autenticación
+  for (byte i = 0; i < 6; i++) {
+    key.keyByte[i] = 0xFF;  // Clave predeterminada
+  }
+
+  // Comprobar si hay una nueva tarjeta presente
+  if (!rfid.PICC_IsNewCardPresent()) {
+    return false;
+  }
+
+  // Leer la tarjeta seleccionada
+  if (!rfid.PICC_ReadCardSerial()) {
+    return false;
+  }
+  return true;
+}
+
 void readRFID() {
   // Read RFID card
-
-
-  for (byte i = 0; i < 6; i++) {
-    key.keyByte[i] = 0xFF;  // Establece la clave MIFARE en 0xFF para cada byte
-  }
-
-
-  // Look for new cards
-  if (!rfid.PICC_IsNewCardPresent()) {  // Verifica si hay una nueva tarjeta presente
-    return;                             // Si no hay tarjeta, sale de la función
-  }
-
-
-  // Verify if the NUID has been read
-  if (!rfid.PICC_ReadCardSerial()) {  // Intenta leer el UID de la tarjeta
-    return;                           // Si no se puede leer, sale de la función
-  }
-
+  if(!hayTagRFID())
+    return;
 
   // Store NUID into nuidPICC array
   for (byte i = 0; i < 4; i++) {
     nuidPICC[i] = rfid.uid.uidByte[i];  // Almacena el UID leído en el array nuidPICC
   }
 
-
   Serial.print(F("RFID in dec: "));           // Imprime el mensaje "RFID in dec: "
   printDec(rfid.uid.uidByte, rfid.uid.size);  // Llama a la función printDec para imprimir el UID en decimal
   Serial.println();                           // Imprime una nueva línea en el monitor serie
+  
+  tagRFIDCerrarComunicacion();
+}
 
-
+void tagRFIDCerrarComunicacion() {
   // Halt PICC
   rfid.PICC_HaltA();  // Detiene la comunicación con la tarjeta RFID
-
-
   // Stop encryption on PCD
   rfid.PCD_StopCrypto1();  // Detiene la encriptación en el lector
 }
 
-
 /**
   Helper routine to dump a byte array as hex values to Serial.
 */
-void printHex(byte *buffer, byte bufferSize) {
+void printHex(byte* buffer, byte bufferSize) {
   if (buffer != nullptr) {  // Comprueba si el puntero no es nulo
     for (byte i = 0; i < bufferSize; i++) {
       Serial.print(buffer[i] < 0x10 ? " 0" : " ");  // Formatea la salida
@@ -254,7 +257,7 @@ void printHex(byte *buffer, byte bufferSize) {
 /**
   Helper routine to dump a byte array as dec values to Serial.
 */
-void printDec(byte *buffer, byte bufferSize) {
+void printDec(byte* buffer, byte bufferSize) {
   if (buffer != nullptr) {  // Comprueba si el puntero no es nulo
     for (byte i = 0; i < bufferSize; i++) {
       Serial.print(buffer[i] < 0x10 ? " 0" : " ");  // Formatea la salida
@@ -263,26 +266,25 @@ void printDec(byte *buffer, byte bufferSize) {
   }
 }
 
-
 void ReadDataFromBlock(int blockNum, byte readBlockData[]) {
+  byte bufferLen = 18;  // Longitud del buffer de lectura
   // Autenticación del bloque para lectura
-  status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, blockNum, &key, &(mfrc522.uid));
+  status = rfid.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, blockNum, &key, &(rfid.uid));
   if (status != MFRC522::STATUS_OK) {
     Serial.print("Fallo en la autenticación para lectura: ");
-    Serial.println(mfrc522.GetStatusCodeName(status));
+    Serial.println(rfid.GetStatusCodeName(status));
     return;
   } else {
     Serial.println("Autenticación exitosa para lectura");
   }
 
   // Leer datos del bloque
-  status = mfrc522.MIFARE_Read(blockNum, readBlockData, &bufferLen);
+  status = rfid.MIFARE_Read(blockNum, readBlockData, &bufferLen);
   if (status != MFRC522::STATUS_OK) {
     Serial.print("Fallo al leer: ");
-    Serial.println(mfrc522.GetStatusCodeName(status));
+    Serial.println(rfid.GetStatusCodeName(status));
     return;
   } else {
     Serial.println("Bloque leído exitosamente");
   }
 }
-
