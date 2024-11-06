@@ -15,11 +15,12 @@
 byte nuidPICC[4] = { 0, 0, 0, 0 };  // Array para almacenar el UID de la tarjeta RFID
 MFRC522::MIFARE_Key key;            // Crea una variable para la clave MIFARE
 MFRC522 rfid(SS_PIN, RST_PIN);      // Inicializa el lector RFID con los pines definidos
+#define RFID_NUMERO_DE_BLOQUE 1     //Número de bloque donde se guardan el nombre de aula en la memoria del tag RFID
 
 // crear constantes con valores de configuracion(p. ej. contraseña de WiFi)
 const char* WIFI_SSID = "ETEC-UBA";       // SSID( nombre de la red WiFi)
 const char* CLAVE = "ETEC-alumnos@UBA";   // Contraseña de wifi
-const char* MQTT_BROKER = "10.9.120.54";  // MQTT Broker
+const char* MQTT_BROKER = "10.9.121.244";  // MQTT Broker
 const int PUERTO_MQTT = 1883;             //Puerto MQTT
 const char* MQTT_TOPIC = "topic-prueba";  //Topic sin "#" y
 const char* MQTT_LOG_TOPIC = "logs";
@@ -150,16 +151,24 @@ bool encontroAula(String aula)
     //repetir las próximas instrucciones MIENTRAS QUE no encuentre la tarjeta Y NO haya dado una vuelta completa
     while(1 == 0) //infinito. ToDo: hasta que de vuelta completa (por si la llave no está) o timeout
     {
+      byte datosLeidosDelTag[16]; //los bloques son de 16 bytes
       //Leo el tag
-      //si es el aula del tag es la que estoy buscando 
-        //detengo carrusel
+      ReadDataFromBlock(RFID_NUMERO_DE_BLOQUE, datosLeidosDelTag);
+      //convertir los datosLeidosDelTag a String: 
+      String datosLeidosDelTagString = String((char*) datosLeidosDelTag);
+
+      //if(aula == datosLeidosDelTagString)
+      if(aula.equals(datosLeidosDelTagString))
+      {//si es el aula del tag es la que estoy buscando  (comparo dos variables Strings que serian aula y datosLeidosDelTag)
+        detenerMotor();
         return true;
+      }
     }
-    //return false;
+    return false;
   
   
   //inicioCodigoMotor
-  girarMotor(MOTOR_VELOCIDAD_MAXIMA);
+  //girarMotor(MOTOR_VELOCIDAD_MAXIMA);
  // delay(1000);
 //  detenerMotor();
   //FinCodigoMotor
