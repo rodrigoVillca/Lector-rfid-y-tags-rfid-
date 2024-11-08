@@ -23,7 +23,7 @@ MFRC522::StatusCode status;
 // crear constantes con valores de configuracion(p. ej. contraseña de WiFi)
 const char* WIFI_SSID = "ETEC-UBA";        // SSID( nombre de la red WiFi)
 const char* CLAVE = "ETEC-alumnos@UBA";    // Contraseña de wifi
-const char* MQTT_BROKER = "10.9.121.244";  // MQTT Broker
+const char* MQTT_BROKER = "10.9.121.123";  // MQTT Broker
 const int PUERTO_MQTT = 1883;              //Puerto MQTT
 const char* MQTT_TOPIC = "topic-prueba";   //Topic sin "#" y
 const char* MQTT_LOG_TOPIC = "logs";
@@ -31,6 +31,7 @@ const char* MQTT_LOG_TOPIC = "logs";
 //inicioCodigoMotor
 const int MOTOR_VERDE = 33;
 const int MOTOR_AZUL = 25;
+      delay0);
 const int MOTOR_NARANJA = 26;
 
 const int MOTOR_VELOCIDAD_MAXIMA = 255;
@@ -166,6 +167,7 @@ bool encontroAula(String aula) {
     Serial.println(datosRecortados);
     //if(aula == datosRecortados)
     if (aula.equals(datosRecortados)) {  //si es el aula del tag es la que estoy buscando  (comparo dos variables Strings que serian aula y datosLeidosDelTag)
+      delay(800);
       detenerMotor();
       return true;
     }
