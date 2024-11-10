@@ -18,14 +18,15 @@ MFRC522 rfid(SS_PIN, RST_PIN);      // Inicializa el lector RFID con los pines d
 
 MFRC522::StatusCode status;
 
-#define RFID_NUMERO_DE_BLOQUE 1  //Número de bloque donde se guardan el nombre de aula en la memoria del tag RFID
+#define RFID_NUMERO_DE_BLOQUE 1   //Número de bloque donde se guardan el nombre de aula en la memoria del tag RFID
+#define RFID_BUFFER_SIZE      18  // Longitud del buffer de lectura (16 bytes es el tamaño del bloque, pero necesita 2 bytes extra)
 
 // crear constantes con valores de configuracion(p. ej. contraseña de WiFi)
 const char* WIFI_SSID = "ETEC-UBA";        // SSID( nombre de la red WiFi)
 const char* CLAVE = "ETEC-alumnos@UBA";    // Contraseña de wifi
 const char* MQTT_BROKER = "10.9.121.123";  // MQTT Broker
 const int PUERTO_MQTT = 1883;              //Puerto MQTT
-const char* MQTT_TOPIC = "topic-prueba";   //Topic sin "#" y
+const char* MQTT_TOPIC = "topic-prueba";   //Topic sin "#"
 const char* MQTT_LOG_TOPIC = "logs";
 
 //inicioCodigoMotor
@@ -44,7 +45,7 @@ PubSubClient client(Cliente_esp);
 
 
 // callback sirve para manejar y responder a los mensajes que llegan al dispositivo desde un servidor MQTT (el broker)
-//Y ESTE BLOQUE DE CODIGO SE EJECUTA CUANDO LA PLACA RESIVE UN MSJ POR MQTT
+//Y ESTE BLOQUE DE CODIGO SE EJECUTA CUANDO LA PLACA RECIBE UN MSJ POR MQTT
 void callback(char* topic, byte* message, unsigned int length) {
   // Imprimir el mensaje recibido en el topic
   Serial.print("Mensaje recibido en el topic: ");
@@ -71,15 +72,17 @@ void setup() {
 
   // Init Serial USB
   Serial.begin(115200);                    // Inicia la comunicación serie a 115200 baudios
-  Serial.println(F("Initialize System"));  // Imprime un mensaje en el monitor serie
+  Serial.println(F("Llavero ETEC-UBA"));  // Imprime un mensaje en el monitor serie
+
   // Init RFID
   SPI.begin();      // Inicia la comunicación SPI
+  //preparo la clave para acceder a los TAGs (puede hacerse al momento de leer)
+  for (byte i = 0; i < 6; i++) {
+    key.keyByte[i] = 0xFF;  // Clave predeterminada
+  }
   rfid.PCD_Init();  // Inicializa el lector RFID
-
-
   Serial.print(F("Reader: "));     // Imprime "Reader: " en el monitor serie
   rfid.PCD_DumpVersionToSerial();  // Imprime la versión del lector RFID
-
 
   //inicioCodigoMotor
   pinMode(MOTOR_VERDE, OUTPUT);
@@ -90,29 +93,26 @@ void setup() {
   //  Iniciar puerto serie (para enviar mensajes informando el estado de la conexión de WiFi, los mensajes que recibimos por MQTT, etc.)
   Serial.begin(115200);
   WiFi.begin(WIFI_SSID, CLAVE);
-  Serial.print("Intentando conectar a wifi");
+  Serial.print("Intentando conectar a wifi...");
 
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
     delay(500);
   }
-  Serial.println("Ya se conecto a WiFi");
+  Serial.print(" ya se conecto a WiFi. IP: ");
   Serial.println(WiFi.localIP());
 
   client.setServer(MQTT_BROKER, PUERTO_MQTT);
   // ACA LE DIGO QUIEN ERA EL CALLBACK
   client.setCallback(callback);
 
-
   // Conectarse al broker MQTT
   while (!client.connected()) {
-    Serial.println("conectando a MQTT...");
+    Serial.print("conectando a MQTT...");
     if (client.connect("ESP32Client")) {
       Serial.println("conectado");
       client.subscribe(MQTT_TOPIC);                       // me suscribo al topic
       client.publish(MQTT_LOG_TOPIC, "ESP32 conectado");  // publico mensaje avisando que me conecté
-
-
     } else {
       Serial.print("Fallo en el estado");
       Serial.print(client.state());
@@ -152,7 +152,7 @@ bool encontroAula(String aula) {
     while (!hayTagRFID());
 
     Serial.print("Hay una tarjeta, con datos: ");
-    byte datosLeidosDelTag[16];  //los bloques son de 16 bytes
+    byte datosLeidosDelTag[RFID_BUFFER_SIZE];
     //Leo el tag
     ReadDataFromBlock(RFID_NUMERO_DE_BLOQUE, datosLeidosDelTag);
 
@@ -166,20 +166,13 @@ bool encontroAula(String aula) {
     Serial.println(datosRecortados);
     //if(aula == datosRecortados)
     if (aula.equals(datosRecortados)) {  //si es el aula del tag es la que estoy buscando  (comparo dos variables Strings que serian aula y datosLeidosDelTag)
-      delay(800);
+      delay(800);   //ToDo: ajustar tiempo desde que detecta llave hasta que detiene motor. Mejorar método (que no dependa de un tiempo fijo) 
       detenerMotor();
       return true;
     }
   }
   detenerMotor();
   return false;
-
-
-  //inicioCodigoMotor
-  //girarMotor(MOTOR_VELOCIDAD_MAXIMA);
-  // delay(1000);
-  //  detenerMotor();
-  //FinCodigoMotor
 }
 //inicioCodigoMotor
 void girarMotor(int velocidad) {
@@ -201,11 +194,6 @@ void detenerMotor() {
 //FinCodigoMotor
 
 bool hayTagRFID() {
-  // Preparar la llave para la autenticación
-  for (byte i = 0; i < 6; i++) {
-    key.keyByte[i] = 0xFF;  // Clave predeterminada
-  }
-
   // Comprobar si hay una nueva tarjeta presente
   if (!rfid.PICC_IsNewCardPresent()) {
     return false;
@@ -268,7 +256,7 @@ void printDec(byte* buffer, byte bufferSize) {
 }
 
 void ReadDataFromBlock(int blockNum, byte readBlockData[]) {
-  byte bufferLen = 18;  // Longitud del buffer de lectura
+  byte bufferLen = RFID_BUFFER_SIZE;
   // Autenticación del bloque para lectura
   status = rfid.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, blockNum, &key, &(rfid.uid));
   if (status != MFRC522::STATUS_OK) {
