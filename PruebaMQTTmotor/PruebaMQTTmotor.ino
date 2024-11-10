@@ -31,7 +31,6 @@ const char* MQTT_LOG_TOPIC = "logs";
 //inicioCodigoMotor
 const int MOTOR_VERDE = 33;
 const int MOTOR_AZUL = 25;
-      delay0);
 const int MOTOR_NARANJA = 26;
 
 const int MOTOR_VELOCIDAD_MAXIMA = 255;
