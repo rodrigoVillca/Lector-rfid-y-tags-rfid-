@@ -1,11 +1,11 @@
-
-
-
 #include <SPI.h>
 #include <MFRC522.h>
 
-#define SS_PIN 21  // Pin de selección de chip
-#define RST_PIN 22 // Pin de reset
+// #define SS_PIN 21  // Pin de selección de chip
+// #define RST_PIN 22 // Pin de reset
+//Referencia a conexiones: https://www.aranacorp.com/es/uso-de-un-modulo-rfid-con-un-esp32/
+#define SS_PIN 5   // Define el pin de selección de esclavo (SS) como el pin 5
+#define RST_PIN 0  // Define el pin de reinicio (RST) como el pin 0
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 MFRC522::MIFARE_Key key;          
