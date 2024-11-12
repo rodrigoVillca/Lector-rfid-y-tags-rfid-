@@ -1,6 +1,8 @@
 //Incluir bibliotecas
 #include <WiFi.h>  //
 #include <PubSubClient.h>
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
 
 //Bibliotecas para el lector RFID
 
@@ -10,6 +12,9 @@
 // Constantes de RFID
 #define SS_PIN 5   // Define el pin de selección de esclavo (SS) como el pin 5
 #define RST_PIN 0  // Define el pin de reinicio (RST) como el pin 0
+
+//Crear el objeto lcd  dirección  0x27 y 16 columnas x 2 filas
+LiquidCrystal_I2C lcd(0x27,16,2);  //
 
 // Variables
 byte nuidPICC[4] = { 0, 0, 0, 0 };  // Array para almacenar el UID de la tarjeta RFID
@@ -24,7 +29,7 @@ MFRC522::StatusCode status;
 // crear constantes con valores de configuracion(p. ej. contraseña de WiFi)
 const char* WIFI_SSID = "ETEC-UBA";        // SSID( nombre de la red WiFi)
 const char* CLAVE = "ETEC-alumnos@UBA";    // Contraseña de wifi
-const char* MQTT_BROKER = "10.9.121.123";  // MQTT Broker
+const char* MQTT_BROKER = "10.9.120.201";  // MQTT Broker
 const int PUERTO_MQTT = 1883;              //Puerto MQTT
 const char* MQTT_TOPIC = "topic-prueba";   //Topic sin "#"
 const char* MQTT_LOG_TOPIC = "logs";
@@ -74,6 +79,11 @@ void setup() {
   Serial.begin(115200);                    // Inicia la comunicación serie a 115200 baudios
   Serial.println(F("Llavero ETEC-UBA"));  // Imprime un mensaje en el monitor serie
 
+    // Inicializar el LCD
+  lcd.init();
+  
+  //Encender la luz de fondo.
+  lcd.backlight();
   // Init RFID
   SPI.begin();      // Inicia la comunicación SPI
   //preparo la clave para acceder a los TAGs (puede hacerse al momento de leer)
@@ -127,13 +137,13 @@ void loop() {
   client.loop();
 
   if (aula != "") {            // si la variable "aula" es diferente de null  me muestra lo que guarde en la variable que
-    Serial.print("Recibi: ");  // que en este caso seria el numero del aula
-    Serial.println(aula);
+    lcd.print("Recibi: ");  // que en este caso seria el numero del aula
+    lcd.println(aula);
 
     if (encontroAula(aula))
-      Serial.println("Llave servida");
+      lcd.println("Llave servida");
     else
-      Serial.println("No se encontro la llave");
+      lcd.println("No se encontro la llave");
 
     aula = "";  // lo que hago aca es que una vez que me muestra lo que le pedi que seria el numero del aula
     //hace que la varible vuelva a estar vacia para que puedan entrar otras aulas
@@ -166,7 +176,7 @@ bool encontroAula(String aula) {
     Serial.println(datosRecortados);
     //if(aula == datosRecortados)
     if (aula.equals(datosRecortados)) {  //si es el aula del tag es la que estoy buscando  (comparo dos variables Strings que serian aula y datosLeidosDelTag)
-      delay(800);   //ToDo: ajustar tiempo desde que detecta llave hasta que detiene motor. Mejorar método (que no dependa de un tiempo fijo) 
+      delay(150);   //ToDo: ajustar tiempo desde que detecta llave hasta que detiene motor. Mejorar método (que no dependa de un tiempo fijo) 
       detenerMotor();
       return true;
     }
