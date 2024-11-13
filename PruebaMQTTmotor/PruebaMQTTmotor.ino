@@ -1,7 +1,7 @@
 //Incluir bibliotecas
 #include <WiFi.h>  //
 #include <PubSubClient.h>
-#include <Wire.h> 
+#include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
 //Bibliotecas para el lector RFID
@@ -14,7 +14,7 @@
 #define RST_PIN 0  // Define el pin de reinicio (RST) como el pin 0
 
 //Crear el objeto lcd  dirección  0x27 y 16 columnas x 2 filas
-LiquidCrystal_I2C lcd(0x27,16,2);  //
+LiquidCrystal_I2C lcd(0x27, 16, 2);  //
 
 // Variables
 byte nuidPICC[4] = { 0, 0, 0, 0 };  // Array para almacenar el UID de la tarjeta RFID
@@ -23,8 +23,8 @@ MFRC522 rfid(SS_PIN, RST_PIN);      // Inicializa el lector RFID con los pines d
 
 MFRC522::StatusCode status;
 
-#define RFID_NUMERO_DE_BLOQUE 1   //Número de bloque donde se guardan el nombre de aula en la memoria del tag RFID
-#define RFID_BUFFER_SIZE      18  // Longitud del buffer de lectura (16 bytes es el tamaño del bloque, pero necesita 2 bytes extra)
+#define RFID_NUMERO_DE_BLOQUE 1  //Número de bloque donde se guardan el nombre de aula en la memoria del tag RFID
+#define RFID_BUFFER_SIZE 18      // Longitud del buffer de lectura (16 bytes es el tamaño del bloque, pero necesita 2 bytes extra)
 
 // crear constantes con valores de configuracion(p. ej. contraseña de WiFi)
 const char* WIFI_SSID = "ETEC-UBA";        // SSID( nombre de la red WiFi)
@@ -42,8 +42,6 @@ const int MOTOR_NARANJA = 26;
 const int MOTOR_VELOCIDAD_MAXIMA = 255;
 
 //FinCodigoMotor
-
-//crear objetos para gestionar las conexiones
 
 String aula = "";  // creo esta variable para guardar lo que viene de MQTT
 WiFiClient Cliente_esp;
@@ -77,10 +75,10 @@ void callback(char* topic, byte* message, unsigned int length) {
 void setup() {
 
   // Init Serial USB
-  Serial.begin(115200);                    // Inicia la comunicación serie a 115200 baudios
+  Serial.begin(115200);  // Inicia la comunicación serie a 115200 baudios
   Serial.println(F("Llavero ETEC-UBA"));
   // Imprime un mensaje en el monitor serie
-    // Inicializar el LCD
+  // Inicializar el LCD
   lcd.init();
 
   //Encender la luz de fondo.
@@ -88,12 +86,12 @@ void setup() {
   lcd.print("Llavero ETEC-UBA");
 
   // Init RFID
-  SPI.begin();      // Inicia la comunicación SPI
+  SPI.begin();  // Inicia la comunicación SPI
   //preparo la clave para acceder a los TAGs (puede hacerse al momento de leer)
   for (byte i = 0; i < 6; i++) {
     key.keyByte[i] = 0xFF;  // Clave predeterminada
   }
-  rfid.PCD_Init();  // Inicializa el lector RFID
+  rfid.PCD_Init();                 // Inicializa el lector RFID
   Serial.print(F("Reader: "));     // Imprime "Reader: " en el monitor serie
   rfid.PCD_DumpVersionToSerial();  // Imprime la versión del lector RFID
 
@@ -139,19 +137,20 @@ void loop() {
 
   client.loop();
 
-  if (aula != "") {    
-   // si la variable "aula" es diferente de null  me muestra lo que guarde en la variable que
+  if (aula != "") {
+    // si la variable "aula" es diferente de null  me muestra lo que guarde en la variable que
     lcd.setCursor(0, 1);
     lcd.print("Recibi: ");  // que en este caso seria el numero del aula
     lcd.print(aula);
 
-    if (encontroAula(aula)){
+    if (encontroAula(aula)) {
       lcd.setCursor(0, 1);
       lcd.print("Llave servida");
       lcd.print("          ");
     } else {
-      lcd.clear();
-      lcd.print("No se encontro la llave");
+      lcd.setCursor(0, 1);
+      lcd.print("Llave faltante");
+      lcd.print("          ");
     }
     aula = "";  // lo que hago aca es que una vez que me muestra lo que le pedi que seria el numero del aula
     //hace que la varible vuelva a estar vacia para que puedan entrar otras aulas
@@ -161,37 +160,55 @@ void loop() {
 bool encontroAula(String aula) {
   Serial.print("Buscando: ");
   Serial.println(aula);
-  //aca tengo que programar un bucle while que haga girar el carrusel asta que encuentre el aula que esta buscando en el tag (como por ejemplo "aula 314")
 
-  girarMotor(MOTOR_VELOCIDAD_MAXIMA);  //hago girar el motor
-  //repetir las próximas instrucciones MIENTRAS QUE no encuentre la tarjeta Y NO haya dado una vuelta completa
-  while (1 == 1)  //infinito. ToDo: hasta que de vuelta completa (por si la llave no está) o timeout
-  {
-    while (!hayTagRFID());
+  // Iniciar el motor para girar
+  girarMotor(MOTOR_VELOCIDAD_MAXIMA);  // Hago girar el motor
+  int contadorDeVueltas = 0;
+
+  // Repetir las próximas instrucciones MIENTRAS NO encuentre la tarjeta Y NO haya dado una vuelta completa
+  while (1 == 1)
+  {  // Bucle infinito, se detiene solo si se encuentra la llave o la condición de timeout
+    while (!hayTagRFID())
+      ;  // Esperar a que se detecte un RFID
 
     Serial.print("Hay una tarjeta, con datos: ");
     byte datosLeidosDelTag[RFID_BUFFER_SIZE];
-    //Leo el tag
+
+    // Leo el tag RFID
     ReadDataFromBlock(RFID_NUMERO_DE_BLOQUE, datosLeidosDelTag);
 
-    //cierro la comunicación con el tag, sino no puedo leer otra
+    // Cierro la comunicación con el tag para poder leer otro
     tagRFIDCerrarComunicacion();
 
-    //convertir los datosLeidosDelTag a String:
+    // Convertir los datos leídos del tag a String
     String datosLeidosDelTagString = String((char*)datosLeidosDelTag);
-    String datosRecortados = datosLeidosDelTagString.substring(0, 8); //ToDo: de apuro recortamos el tamaño de los datos leidos. Mejorar
+    String datosRecortados = datosLeidosDelTagString.substring(0, 8);  // Recorto los datos leídos (mejorar esta parte)
 
     Serial.println(datosRecortados);
-    //if(aula == datosRecortados)
-    if (aula.equals(datosRecortados)) {  //si es el aula del tag es la que estoy buscando  (comparo dos variables Strings que serian aula y datosLeidosDelTag)
-      delay(150);   //ToDo: ajustar tiempo desde que detecta llave hasta que detiene motor. Mejorar método (que no dependa de un tiempo fijo) 
+
+   if (datosRecortados.equals("inicio  "))
+    {
+      contadorDeVueltas++;  // Incremento el contador
+      if (contadorDeVueltas == 2) {
+        Serial.println("TAG de inicio detectada dos veces. Deteniendo motor.");
+        delay(1200);     // para que se pase del tag de inicio y llegue a un hueco (asi no retiran el tag de inicio)
+        detenerMotor();  // Detengo el motor
+
+        return false;  // Regreso verdadero indicando que se encontró la llave dos veces
+      }
+    }
+    // Si la aula leída del tag coincide con el aula que busco, incremento el contador
+    else if (aula.equals(datosRecortados)) {  //si es el aula del tag es la que estoy buscando  (comparo dos variables Strings que serian aula y datosLeidosDelTag)
+      delay(150);                             //ToDo: ajustar tiempo desde que detecta llave hasta que detiene motor. Mejorar método (que no dependa de un tiempo fijo)
       detenerMotor();
       return true;
     }
   }
+  // Si no se encontró la llave, detengo el motor
   detenerMotor();
   return false;
 }
+
 //inicioCodigoMotor
 void girarMotor(int velocidad) {
   analogWrite(MOTOR_VERDE, velocidad);
@@ -226,7 +243,7 @@ bool hayTagRFID() {
 
 void readRFID() {
   // Read RFID card
-  if(!hayTagRFID())
+  if (!hayTagRFID())
     return;
 
   // Store NUID into nuidPICC array
@@ -237,7 +254,7 @@ void readRFID() {
   Serial.print(F("RFID in dec: "));           // Imprime el mensaje "RFID in dec: "
   printDec(rfid.uid.uidByte, rfid.uid.size);  // Llama a la función printDec para imprimir el UID en decimal
   Serial.println();                           // Imprime una nueva línea en el monitor serie
-  
+
   tagRFIDCerrarComunicacion();
 }
 
