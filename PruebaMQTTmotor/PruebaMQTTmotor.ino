@@ -40,6 +40,7 @@ const int MOTOR_AZUL = 25;
 const int MOTOR_NARANJA = 26;
 
 const int MOTOR_VELOCIDAD_MAXIMA = 255;
+
 //FinCodigoMotor
 
 //crear objetos para gestionar las conexiones
@@ -77,13 +78,15 @@ void setup() {
 
   // Init Serial USB
   Serial.begin(115200);                    // Inicia la comunicación serie a 115200 baudios
-  Serial.println(F("Llavero ETEC-UBA"));  // Imprime un mensaje en el monitor serie
-
+  Serial.println(F("Llavero ETEC-UBA"));
+  // Imprime un mensaje en el monitor serie
     // Inicializar el LCD
   lcd.init();
-  
+
   //Encender la luz de fondo.
   lcd.backlight();
+  lcd.print("Llavero ETEC-UBA");
+
   // Init RFID
   SPI.begin();      // Inicia la comunicación SPI
   //preparo la clave para acceder a los TAGs (puede hacerse al momento de leer)
@@ -136,15 +139,20 @@ void loop() {
 
   client.loop();
 
-  if (aula != "") {            // si la variable "aula" es diferente de null  me muestra lo que guarde en la variable que
+  if (aula != "") {    
+   // si la variable "aula" es diferente de null  me muestra lo que guarde en la variable que
+    lcd.setCursor(0, 1);
     lcd.print("Recibi: ");  // que en este caso seria el numero del aula
-    lcd.println(aula);
+    lcd.print(aula);
 
-    if (encontroAula(aula))
-      lcd.println("Llave servida");
-    else
-      lcd.println("No se encontro la llave");
-
+    if (encontroAula(aula)){
+      lcd.setCursor(0, 1);
+      lcd.print("Llave servida");
+      lcd.print("          ");
+    } else {
+      lcd.clear();
+      lcd.print("No se encontro la llave");
+    }
     aula = "";  // lo que hago aca es que una vez que me muestra lo que le pedi que seria el numero del aula
     //hace que la varible vuelva a estar vacia para que puedan entrar otras aulas
   }
