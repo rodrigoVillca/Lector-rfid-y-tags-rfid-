@@ -29,7 +29,7 @@ MFRC522::StatusCode status;
 // crear constantes con valores de configuracion(p. ej. contraseña de WiFi)
 const char* WIFI_SSID = "ETEC-UBA";        // SSID( nombre de la red WiFi)
 const char* CLAVE = "ETEC-alumnos@UBA";    // Contraseña de wifi
-const char* MQTT_BROKER = "10.9.120.201";  // MQTT Broker
+const char* MQTT_BROKER = "10.9.120.180";  // MQTT Broker
 const int PUERTO_MQTT = 1883;              //Puerto MQTT
 const char* MQTT_TOPIC = "topic-prueba";   //Topic sin "#"
 const char* MQTT_LOG_TOPIC = "logs";
@@ -134,8 +134,9 @@ void setup() {
 
 void loop() {
   //readRFID();  // Llama a la función readRFID en el bucle principal
-
+  revisarConectividadWiFiYMQTT();  //si se desconectó, vuelve a conectar
   client.loop();
+
 
   if (aula != "") {
     // si la variable "aula" es diferente de null  me muestra lo que guarde en la variable que
@@ -146,16 +147,37 @@ void loop() {
     if (encontroAula(aula)) {
       lcd.setCursor(0, 1);
       lcd.print("Llave servida");
-      lcd.print("          ");
+      lcd.print("    ");
     } else {
       lcd.setCursor(0, 1);
       lcd.print("Llave faltante");
-      lcd.print("          ");
+      lcd.print("   ");
     }
     aula = "";  // lo que hago aca es que una vez que me muestra lo que le pedi que seria el numero del aula
     //hace que la varible vuelva a estar vacia para que puedan entrar otras aulas
   }
 }
+void revisarConectividadWiFiYMQTT() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Se desconectó de WiFi");
+  } else {
+    //Serial.println("Se desconectó de MQTT");
+    while (!client.connected()) {
+      Serial.print("conectando a MQTT...");
+      if (client.connect("ESP32Client")) {
+        Serial.println("conectado");
+        client.subscribe(MQTT_TOPIC);                       // me suscribo al topic
+        client.publish(MQTT_LOG_TOPIC, "ESP32 conectado");  // publico mensaje avisando que me conecté
+      } else {
+        Serial.print("Fallo en el estado");
+        Serial.print(client.state());
+        delay(2000);
+      }
+    }
+  }
+}
+
+
 
 bool encontroAula(String aula) {
   Serial.print("Buscando: ");
@@ -166,8 +188,7 @@ bool encontroAula(String aula) {
   int contadorDeVueltas = 0;
 
   // Repetir las próximas instrucciones MIENTRAS NO encuentre la tarjeta Y NO haya dado una vuelta completa
-  while (1 == 1)
-  {  // Bucle infinito, se detiene solo si se encuentra la llave o la condición de timeout
+  while (1 == 1) {  // Bucle infinito, se detiene solo si se encuentra la llave o la condición de timeout
     while (!hayTagRFID())
       ;  // Esperar a que se detecte un RFID
 
@@ -186,8 +207,7 @@ bool encontroAula(String aula) {
 
     Serial.println(datosRecortados);
 
-   if (datosRecortados.equals("inicio  "))
-    {
+    if (datosRecortados.equals("inicio  ")) {
       contadorDeVueltas++;  // Incremento el contador
       if (contadorDeVueltas == 2) {
         Serial.println("TAG de inicio detectada dos veces. Deteniendo motor.");
