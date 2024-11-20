@@ -149,10 +149,10 @@ void loop() {
       lcd.setCursor(0, 1);
       lcd.print("Llave servida");
       lcd.print("    ");
-      while (hayTagRFID());
+      while (hayTagRFID()); //ToDo: no estaría funcionando (no espera a que retire la llave)
 
       //si llego acá es porque ya no hay llave
-      //aca falta que cuando saco la llave este mensaje de se muestre en el topic: 
+      //aca falta que cuando saco la llave dicha llave de se muestre en el topic: 
       client.publish(MQTT_TOPIC_ESP_PUBLICA, aula.c_str());
 
 
