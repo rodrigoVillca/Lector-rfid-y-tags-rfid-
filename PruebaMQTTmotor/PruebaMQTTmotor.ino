@@ -29,10 +29,11 @@ MFRC522::StatusCode status;
 // crear constantes con valores de configuracion(p. ej. contraseña de WiFi)
 const char* WIFI_SSID = "ETEC-UBA";        // SSID( nombre de la red WiFi)
 const char* CLAVE = "ETEC-alumnos@UBA";    // Contraseña de wifi
-const char* MQTT_BROKER = "10.9.120.180";  // MQTT Broker
+const char* MQTT_BROKER = "10.9.121.203";  // MQTT Broker
 const int PUERTO_MQTT = 1883;              //Puerto MQTT
-const char* MQTT_TOPIC = "topic-prueba";   //Topic sin "#"
-const char* MQTT_LOG_TOPIC = "logs";
+const char* MQTT_TOPIC_ESP_SUSCRIBE = "topic-prueba";  // Este el topic donde recibo el numero de aula 
+const char* MQTT_LOG_TOPIC = "logs"; //
+const char* MQTT_TOPIC_ESP_PUBLICA = "aula-retirada"; 
 
 //inicioCodigoMotor
 const int MOTOR_VERDE = 33;
@@ -122,7 +123,7 @@ void setup() {
     Serial.print("conectando a MQTT...");
     if (client.connect("ESP32Client")) {
       Serial.println("conectado");
-      client.subscribe(MQTT_TOPIC);                       // me suscribo al topic
+      client.subscribe(MQTT_TOPIC_ESP_SUSCRIBE);                       // me suscribo al topic
       client.publish(MQTT_LOG_TOPIC, "ESP32 conectado");  // publico mensaje avisando que me conecté
     } else {
       Serial.print("Fallo en el estado");
@@ -148,6 +149,13 @@ void loop() {
       lcd.setCursor(0, 1);
       lcd.print("Llave servida");
       lcd.print("    ");
+      while (hayTagRFID());
+
+      //si llego acá es porque ya no hay llave
+      //aca falta que cuando saco la llave este mensaje de se muestre en el topic: 
+      client.publish(MQTT_TOPIC_ESP_PUBLICA, aula.c_str());
+
+
     } else {
       lcd.setCursor(0, 1);
       lcd.print("Llave faltante");
@@ -166,7 +174,7 @@ void revisarConectividadWiFiYMQTT() {
       Serial.print("conectando a MQTT...");
       if (client.connect("ESP32Client")) {
         Serial.println("conectado");
-        client.subscribe(MQTT_TOPIC);                       // me suscribo al topic
+        client.subscribe(MQTT_TOPIC_ESP_SUSCRIBE);                       // me suscribo al topic
         client.publish(MQTT_LOG_TOPIC, "ESP32 conectado");  // publico mensaje avisando que me conecté
       } else {
         Serial.print("Fallo en el estado");
